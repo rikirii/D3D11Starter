@@ -19,9 +19,14 @@ public:
 
 private:
 
+	//variables
+	float color[4] = { 0.4f, 0.6f, 0.75f, 0.0f };
+	bool demoWinVisibility = false;
+
 	// Initialization helper methods - feel free to customize, combine, remove, etc.
 	void LoadShaders();
 	void CreateGeometry();
+	void ImGuiHelper(float deltaTime, float totalTime);
 
 	// Note the usage of ComPtr below
 	//  - This is a smart pointer for objects that abide by the
