@@ -4,6 +4,7 @@
 #include "Input.h"
 #include "PathHelpers.h"
 #include "Window.h"
+#include "Mesh.h"
 
 #include <DirectXMath.h>
 
@@ -18,7 +19,7 @@
 #include "ImGui/imgui_impl_win32.h"
 
 #include <string.h>
-
+#include <memory>
 
 // For the DirectX Math library
 using namespace DirectX;
@@ -161,11 +162,17 @@ void Game::LoadShaders()
 // --------------------------------------------------------
 void Game::CreateGeometry()
 {
+	///https://rgbcolorpicker.com/0-1
+	///https://colors.artyclick.com/color-name-finder/
 	// Create some temporary variables to represent colors
 	// - Not necessary, just makes things more readable
 	XMFLOAT4 red = XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f);
 	XMFLOAT4 green = XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f);
 	XMFLOAT4 blue = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
+	XMFLOAT4 artyClickSkyBlue = XMFLOAT4(0.075f, 0.729f, 1.0f, 1.0f); // #13baff
+	XMFLOAT4 malachite = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f); // #04cc2b
+	XMFLOAT4 lavender = XMFLOAT4(0.827f, 0.827f, 1.0f, 1.0f); // #d3d3ff
+
 
 	// Set up the vertices of the triangle we would like to draw
 	// - We're going to copy this array, exactly as it exists in CPU memory
@@ -193,59 +200,30 @@ void Game::CreateGeometry()
 	// - But just to see how it's done...
 	unsigned int indices[] = { 0, 1, 2 };
 
+	this->sharedMeshArray.push_back(std::make_shared<Mesh>(vertices, indices, 3, 3) );
 
-	// Create a VERTEX BUFFER
-	// - This holds the vertex data of triangles for a single object
-	// - This buffer is created on the GPU, which is where the data needs to
-	//    be if we want the GPU to act on it (as in: draw it to the screen)
-	{
-		// First, we need to describe the buffer we want Direct3D to make on the GPU
-		//  - Note that this variable is created on the stack since we only need it once
-		//  - After the buffer is created, this description variable is unnecessary
-		D3D11_BUFFER_DESC vbd = {};
-		vbd.Usage = D3D11_USAGE_IMMUTABLE;	// Will NEVER change
-		vbd.ByteWidth = sizeof(Vertex) * 3;       // 3 = number of vertices in the buffer
-		vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER; // Tells Direct3D this is a vertex buffer
-		vbd.CPUAccessFlags = 0;	// Note: We cannot access the data from C++ (this is good)
-		vbd.MiscFlags = 0;
-		vbd.StructureByteStride = 0;
+	Vertex verticesA[] = {
+		{ XMFLOAT3(-0.7f, +0.6f, +0.0f), lavender },
+		{ XMFLOAT3(-0.25f, 0.8f, +0.0f), lavender },
+		{ XMFLOAT3(-0.3f, +0.2f, +0.0f), lavender },
+		{ XMFLOAT3(-0.8f, -0.4f, +0.0f), malachite },
+	};
+	unsigned int indicesA[] = { 0,1,2,0,2,3 };
+	this->sharedMeshArray.push_back(std::make_shared<Mesh>(verticesA, indicesA, 4, 6 ));
 
-		// Create the proper struct to hold the initial vertex data
-		// - This is how we initially fill the buffer with data
-		// - Essentially, we're specifying a pointer to the data to copy
-		D3D11_SUBRESOURCE_DATA initialVertexData = {};
-		initialVertexData.pSysMem = vertices; // pSysMem = Pointer to System Memory
 
-		// Actually create the buffer on the GPU with the initial data
-		// - Once we do this, we'll NEVER CHANGE DATA IN THE BUFFER AGAIN
-		Graphics::Device->CreateBuffer(&vbd, &initialVertexData, vertexBuffer.GetAddressOf());
-	}
+	Vertex verticesB[] = {
+		{ XMFLOAT3(+0.6f, +0.8f, +0.0f), malachite },
+		{ XMFLOAT3(+0.75f, +0.6f, +0.0f), lavender },
+		{ XMFLOAT3(+0.9f, -0.3f, +0.0f), artyClickSkyBlue },
+		{ XMFLOAT3(+0.6f, -0.7f, +0.0f), malachite },
+		{ XMFLOAT3(+0.5f, +0.1f, +0.0f), green },
+	};
 
-	// Create an INDEX BUFFER
-	// - This holds indices to elements in the vertex buffer
-	// - This is most useful when vertices are shared among neighboring triangles
-	// - This buffer is created on the GPU, which is where the data needs to
-	//    be if we want the GPU to act on it (as in: draw it to the screen)
-	{
-		// Describe the buffer, as we did above, with two major differences
-		//  - Byte Width (3 unsigned integers vs. 3 whole vertices)
-		//  - Bind Flag (used as an index buffer instead of a vertex buffer) 
-		D3D11_BUFFER_DESC ibd = {};
-		ibd.Usage = D3D11_USAGE_IMMUTABLE;	// Will NEVER change
-		ibd.ByteWidth = sizeof(unsigned int) * 3;	// 3 = number of indices in the buffer
-		ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;	// Tells Direct3D this is an index buffer
-		ibd.CPUAccessFlags = 0;	// Note: We cannot access the data from C++ (this is good)
-		ibd.MiscFlags = 0;
-		ibd.StructureByteStride = 0;
+	unsigned int indicesB[] = {0,1,4,4,2,3,4,1,2};
+	int size = sizeof(indicesB) / sizeof(indicesB[0]);
 
-		// Specify the initial data for this buffer, similar to above
-		D3D11_SUBRESOURCE_DATA initialIndexData = {};
-		initialIndexData.pSysMem = indices; // pSysMem = Pointer to System Memory
-
-		// Actually create the buffer with the initial data
-		// - Once we do this, we'll NEVER CHANGE THE BUFFER AGAIN
-		Graphics::Device->CreateBuffer(&ibd, &initialIndexData, indexBuffer.GetAddressOf());
-	}
+	this->sharedMeshArray.push_back(std::make_shared<Mesh>(verticesB, indicesB, 5, size ) );
 }
 
 void Game::ImGuiHelper(float deltaTime, float totalTime) {
@@ -268,57 +246,189 @@ void Game::ImGuiHelper(float deltaTime, float totalTime) {
 	// Begin building imgui
 	ImGui::Begin("Inspector"); // Everything after is part of this window
 
-	// Some interaction
-	// Replace the %f with the next parameter, and format as a float
-	ImGui::Text("Framerate: %f fps", ImGui::GetIO().Framerate);
-	// Replace each %d with the next parameter, and format as decimal integers
-	// The "x" will be printed as-is between the numbers, like so: 800x600
-	ImGui::Text("Window Resolution: %dx%d", Window::Width(), Window::Height());
+	ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+	bool appDetail_opened = ImGui::TreeNode("App Details");
 
-	///Color picker for window background
-	//XMFLOAT4 color(1.0f, 0.0f, 0.5f, 1.0f);
-	// Can create a 3 or 4-component color editors, too!
-	// - Notice the two different function names below
-	//ImGui::ColorEdit3("RGB color editor", &color[0]);
-	ImGui::ColorEdit4("RGBA color editor", &color[0]);
+	if (appDetail_opened) {
+		// Some interaction
+		// Replace the %f with the next parameter, and format as a float
+		ImGui::Text("Framerate: %f fps", ImGui::GetIO().Framerate);
+		// Replace each %d with the next parameter, and format as decimal integers
+		// The "x" will be printed as-is between the numbers, like so: 800x600
+		ImGui::Text("Window Resolution: %dx%d", Window::Width(), Window::Height());
 
-	std::string demoVisibilityText = " ImGui Demo Window";
-	char visibilityText[100];
-	if (demoWinVisibility) {
-		demoVisibilityText = "Hide" + demoVisibilityText;
+		///Color picker for window background
+		//XMFLOAT4 color(1.0f, 0.0f, 0.5f, 1.0f);
+		// Can create a 3 or 4-component color editors, too!
+		// - Notice the two different function names below
+		//ImGui::ColorEdit3("RGB color editor", &color[0]);
+		ImGui::ColorEdit4("RGBA color editor", &color[0]);
+
+
+		// Mouse position
+		if (ImGui::IsMousePosValid())
+			ImGui::Text("Mouse pos: (%g, %g)", io.MousePos.x, io.MousePos.y);
+		else
+			ImGui::Text("Mouse pos: <INVALID>");
+
+
+		// which mouse button is being pressed
+		ImGui::Text("Mouse down:");
+		for (int i = 0; i < IM_ARRAYSIZE(io.MouseDown); i++) if (ImGui::IsMouseDown(i)) { ImGui::SameLine(); ImGui::Text("b%d (%.02f secs)", i, io.MouseDownDuration[i]); }
+
+
+		// Display what keys are being pressed
+		struct funcs { static bool IsLegacyNativeDupe(ImGuiKey) { return false; } };
+		ImGuiKey start_key = ImGuiKey_NamedKey_BEGIN;
+		ImGui::Text("Keys down:");
+		for (ImGuiKey key = start_key; key < ImGuiKey_NamedKey_END; key = (ImGuiKey)(key + 1)) 
+		{ 
+			if (funcs::IsLegacyNativeDupe(key) || !ImGui::IsKeyDown(key)) 
+			continue; 
+			ImGui::SameLine(); 
+			ImGui::Text((key < ImGuiKey_NamedKey_BEGIN) ? "\"%s\"" : "\"%s\" %d", ImGui::GetKeyName(key), key); 
+		}
+
+
+		//dynamically change button text (round-about way0
+		std::string demoVisibilityText = " ImGui Demo Window";
+		char visibilityText[100];
+		if (demoWinVisibility) {
+			demoVisibilityText = "Hide" + demoVisibilityText;
+		}
+		else {
+			demoVisibilityText = "Show" + demoVisibilityText;
+		}
+
+		strcpy_s(visibilityText, demoVisibilityText.c_str());
+		if (demoWinVisibility)
+		{
+			ImGui::ShowDemoWindow();
+		}
+
+		// lambda funciton allowed?
+		if (ImGui::Button(visibilityText))
+		{
+			// This will only execute on frames in which the button is clicked
+			demoWinVisibility = !demoWinVisibility;
+		}
+		//==================================
+
+		ImGui::TreePop();
+
 	}
-	else {
-		demoVisibilityText = "Show" + demoVisibilityText;
+
+	ImGui::NewLine();
+
+	ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+	bool meshes_opened = ImGui::TreeNode("Meshes");
+
+	if (meshes_opened) {
+
+		ImGui::Spacing();
+
+		if (ImGui::TreeNode("Mesh: Triangle")) {
+			ImGui::Spacing();
+
+			int count = 0;
+			int totalVert = 0;
+			int totalIndicies = 0;
+
+			for (std::shared_ptr<Mesh> myMesh : sharedMeshArray) {
+				if (myMesh->GetVertexCount() == 3) {
+					count++;
+					totalVert += 3;
+					totalIndicies += 3;
+				}
+			}
+
+			ImGui::Text("Number of 3-sided Triangles: %u", count);
+			ImGui::Text("Total Verticies: %u", totalVert);
+			ImGui::Text("Total Indicies: %u", totalIndicies);
+
+			ImGui::Spacing();
+
+			ImGui::TreePop();
+		}
+
+		ImGui::Spacing();
+		if (ImGui::TreeNode("Mesh: Quad")) {
+
+			ImGui::Spacing();
+
+			int count = 0;
+			int totalTri = 0;
+			int totalVert = 0;
+			int totalIndicies = 0;
+
+			for (std::shared_ptr<Mesh> myMesh : sharedMeshArray) {
+				if (myMesh->GetVertexCount() == 4) {
+					count++;
+					totalTri += (myMesh->GetIndexCount() / 3);
+					totalVert += 4;
+					totalIndicies += myMesh->GetIndexCount();
+				}
+			}
+
+			ImGui::Text("Number of Quad's: %u", count);
+			ImGui::Text("Number of Triangles: %u", totalTri);
+			ImGui::Text("Total Verticies: %u", totalVert);
+			ImGui::Text("Total Indicies: %u", totalIndicies);
+
+			ImGui::Spacing();
+
+			ImGui::TreePop();
+		}
+
+		ImGui::Spacing();
+		if (ImGui::TreeNode("Mesh: Poly (Above 4)")) {
+
+			ImGui::Spacing();
+
+			int count = 0;
+			int totalTri = 0;
+			int totalVert = 0;
+			int totalIndicies = 0;
+
+			for (std::shared_ptr<Mesh> myMesh : sharedMeshArray) {
+				if (myMesh->GetVertexCount() > 4) {
+					count++;
+					totalTri += (myMesh->GetIndexCount() / 3);
+					totalVert += myMesh->GetVertexCount();
+					totalIndicies += myMesh->GetIndexCount();
+				}
+			}
+
+			ImGui::Text("Number of Polygons: %u", count);
+			ImGui::Text("Number of Triangles: %u", totalTri);
+			ImGui::Text("Total Verticies: %u", totalVert);
+			ImGui::Text("Total Indicies: %u", totalIndicies);
+
+			ImGui::Spacing();
+
+			ImGui::TreePop();
+		}
+
+		ImGui::TreePop();
 	}
 
-	strcpy_s(visibilityText, demoVisibilityText.c_str());
-
-	// lambda funciton allowed?
-	if (ImGui::Button(visibilityText))
-	{
-		// This will only execute on frames in which the button is clicked
-		demoWinVisibility = !demoWinVisibility;
-	}
-
-	if (demoWinVisibility)
-	{
-		ImGui::ShowDemoWindow();
-	}
 
 	// Draggable slider from 0-100 which reads and updates the variable number
 	// - number is an integer variable, so &number is its address (a pointer)
 	//ImGui::SliderInt("Choose a number", &number, 0, 100);
 
-	float localArray[2] = { 0.5f, 0.5f };
-	float* arrayAsPointer = new float[3];
-	XMFLOAT4 vectorStruct(10.0f, -2.0f, 99.0f, 0.1f);
-	// Provide the address of the first element when creating vector editors
-	// - Note the function names below are different!
-	// - Additional parameters allow you to set the range and drag speed
-	ImGui::DragFloat2("2-component editor", localArray);
-	ImGui::DragFloat3("3-component editor", arrayAsPointer);
-	ImGui::DragFloat4("4-component editor", &vectorStruct.x);
+	//float localArray[2] = { 0.5f, 0.5f };
+	//float* arrayAsPointer = new float[3];
+	//XMFLOAT4 vectorStruct(10.0f, -2.0f, 99.0f, 0.1f);
+	//// Provide the address of the first element when creating vector editors
+	//// - Note the function names below are different!
+	//// - Additional parameters allow you to set the range and drag speed
+	//ImGui::DragFloat2("2-component editor", localArray);
+	//ImGui::DragFloat3("3-component editor", arrayAsPointer);
+	//ImGui::DragFloat4("4-component editor", &vectorStruct.x);
 
+
+	
 
 	ImGui::End(); // Ends current window
 }
@@ -368,26 +478,12 @@ void Game::Draw(float deltaTime, float totalTime)
 	// - These steps are generally repeated for EACH object you draw
 	// - Other Direct3D calls will also be necessary to do more complex things
 	{
-		// Set buffers in the input assembler (IA) stage
-		//  - Do this ONCE PER OBJECT, since each object may have different geometry
-		//  - For this demo, this step *could* simply be done once during Init()
-		//  - However, this needs to be done between EACH DrawIndexed() call
-		//     when drawing different geometry, so it's here as an example
-		UINT stride = sizeof(Vertex);
-		UINT offset = 0;
-		Graphics::Context->IASetVertexBuffers(0, 1, vertexBuffer.GetAddressOf(), &stride, &offset);
-		Graphics::Context->IASetIndexBuffer(indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
-
-		// Tell Direct3D to draw
-		//  - Begins the rendering pipeline on the GPU
-		//  - Do this ONCE PER OBJECT you intend to draw
-		//  - This will use all currently set Direct3D resources (shaders, buffers, etc)
-		//  - DrawIndexed() uses the currently set INDEX BUFFER to look up corresponding
-		//     vertices in the currently set VERTEX BUFFER
-		Graphics::Context->DrawIndexed(
-			3,     // The number of indices to use (we could draw a subset if we wanted)
-			0,     // Offset to the first index we want to use
-			0);    // Offset to add to each index when looking up vertices
+		
+		
+		for (std::shared_ptr<Mesh> myMesh : this->sharedMeshArray) {
+			myMesh->Draw(deltaTime, totalTime);
+		}
+		
 	}
 
 	ImGui::Render(); // Turns this frame’s UI into renderable triangles

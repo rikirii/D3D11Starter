@@ -2,6 +2,9 @@
 
 #include <d3d11.h>
 #include <wrl/client.h>
+#include "Mesh.h"
+#include <memory>
+#include <vector>
 
 class Game
 {
@@ -20,8 +23,12 @@ public:
 private:
 
 	//variables
-	float color[4] = { 0.4f, 0.6f, 0.75f, 0.0f };
+	float color[4] = { 0.4f, 0.6f, 0.75f, 1.0f };
 	bool demoWinVisibility = false;
+
+	std::shared_ptr<Mesh> myMesh; 
+
+	std::vector<std::shared_ptr<Mesh>> sharedMeshArray;
 
 	// Initialization helper methods - feel free to customize, combine, remove, etc.
 	void LoadShaders();
@@ -33,9 +40,7 @@ private:
 	//     Component Object Model, which DirectX objects do
 	//  - More info here: https://github.com/Microsoft/DirectXTK/wiki/ComPtr
 
-	// Buffers to hold actual geometry data
-	Microsoft::WRL::ComPtr<ID3D11Buffer> vertexBuffer;
-	Microsoft::WRL::ComPtr<ID3D11Buffer> indexBuffer;
+
 
 	// Shaders and shader-related constructs
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShader;
