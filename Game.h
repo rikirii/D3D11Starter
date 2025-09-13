@@ -26,8 +26,6 @@ private:
 	float color[4] = { 0.4f, 0.6f, 0.75f, 1.0f };
 	bool demoWinVisibility = false;
 
-	std::shared_ptr<Mesh> myMesh; 
-
 	std::vector<std::shared_ptr<Mesh>> sharedMeshArray;
 
 	// Initialization helper methods - feel free to customize, combine, remove, etc.
