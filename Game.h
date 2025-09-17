@@ -26,6 +26,10 @@ private:
 	float color[4] = { 0.4f, 0.6f, 0.75f, 1.0f };
 	bool demoWinVisibility = false;
 
+	//temp for assignment 4
+	float tempColorTint[4] = { 1.0f, 0.5f, 0.5f, 1.0f };
+	float tempOffset[3] = { 0.25f, 0.0f, 0.0f };
+
 	std::vector<std::shared_ptr<Mesh>> sharedMeshArray;
 
 	// Initialization helper methods - feel free to customize, combine, remove, etc.
@@ -38,7 +42,8 @@ private:
 	//     Component Object Model, which DirectX objects do
 	//  - More info here: https://github.com/Microsoft/DirectXTK/wiki/ComPtr
 
-
+	Microsoft::WRL::ComPtr<ID3D11Buffer> constBuffer;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> vsConstantBuffer;
 
 	// Shaders and shader-related constructs
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShader;

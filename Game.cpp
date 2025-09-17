@@ -5,6 +5,7 @@
 #include "PathHelpers.h"
 #include "Window.h"
 #include "Mesh.h"
+#include "BufferStruct.h"
 
 #include <DirectXMath.h>
 
@@ -67,6 +68,26 @@ Game::Game()
 	ImGui::StyleColorsDark();
 	//ImGui::StyleColorsLight();
 	//ImGui::StyleColorsClassic();
+
+
+	// Calculate the next multiple of 16 (instead of hardcoding it)
+	unsigned int size = sizeof(VertexShaderData);
+	size = (size + 15) / 16 * 16;
+
+	// Describe the constant buffer
+	D3D11_BUFFER_DESC cbDesc = {}; // Sets struct to all zeros
+	cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	cbDesc.ByteWidth = size; // Must be a multiple of 16
+	cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	cbDesc.Usage = D3D11_USAGE_DYNAMIC;
+	Graphics::Device->CreateBuffer(&cbDesc, 0, constBuffer.GetAddressOf());
+
+
+	Graphics::Context->VSSetConstantBuffers(
+		0, // Which slot (register) to bind the buffer to?
+		1, // How many are we setting right now?
+		constBuffer.GetAddressOf()); // Array of buffers (or address of just one)
+	
 
 }
 
@@ -409,6 +430,17 @@ void Game::ImGuiHelper(float deltaTime, float totalTime) {
 			ImGui::TreePop();
 		}
 
+		ImGui::Spacing();
+		if (ImGui::TreeNode("ColorTint + Offset")) {
+			ImGui::Spacing();
+
+			ImGui::ColorEdit4("Color Tint Editor", tempColorTint);
+
+			ImGui::DragFloat3("Offset Editor",tempOffset,0.01f,-0.5f,0.5f );
+
+			ImGui::TreePop();
+		}
+
 		ImGui::TreePop();
 	}
 
@@ -481,6 +513,17 @@ void Game::Draw(float deltaTime, float totalTime)
 		
 		
 		for (std::shared_ptr<Mesh> myMesh : this->sharedMeshArray) {
+			VertexShaderData vsData;
+			vsData.colorTint = XMFLOAT4(tempColorTint);
+			vsData.offset = XMFLOAT3(tempOffset);
+
+			D3D11_MAPPED_SUBRESOURCE mappedBuffer = {};
+			Graphics::Context->Map(constBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedBuffer);
+			memcpy(mappedBuffer.pData, &vsData, sizeof(vsData));
+			Graphics::Context->Unmap(constBuffer.Get(), 0);
+
+			
+
 			myMesh->Draw(deltaTime, totalTime);
 		}
 		
