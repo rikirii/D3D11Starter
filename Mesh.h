@@ -3,6 +3,8 @@
 #include <d3d11.h>
 #include <wrl/client.h>
 #include "Vertex.h"
+#include <vector>
+
 
 class Mesh
 {
@@ -13,8 +15,11 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11Buffer> vertexBuffer; 
 	Microsoft::WRL::ComPtr<ID3D11Buffer> indexBuffer; 
 
+	void CreateDirect3DBuffer(Vertex* vertexArr, unsigned int* indexArr, int numVert, int numIndex);
+
 public:
 	Mesh(Vertex vertices[], unsigned int indices[], int numVert, int numIndex);
+	Mesh(const char* objFilePath);
 	~Mesh();
 
 	Microsoft::WRL::ComPtr<ID3D11Buffer> GetVertexBuffer();
@@ -22,9 +27,9 @@ public:
 
 	int GetIndexCount();
 	int GetVertexCount();
-	void Draw(float deltaTime, float totalTime);
+	void Draw();
 
-
+	void CalculateTangents(Vertex* verts, int numVerts, unsigned int* indices, int numIndices);
 
 };
 

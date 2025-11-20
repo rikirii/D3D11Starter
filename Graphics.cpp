@@ -75,6 +75,10 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 	// This will hold options for DirectX initialization
 	unsigned int deviceFlags = 0;
 
+
+
+	// ---------------------------------------
+
 #if defined(DEBUG) || defined(_DEBUG)
 	// If we're in debug mode in visual studio, we also
 	// want to make a "Debug DirectX Device" to see some
@@ -153,6 +157,28 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 	// various buffers we need for rendering. This call 
 	// will also set the appropriate viewport.
 	ResizeBuffers(windowWidth, windowHeight);
+
+
+	// --- Set up the ring constant buffer ---
+
+	// Grab the Direct3D 11.1 version of the context for later
+	Context->QueryInterface<ID3D11DeviceContext1>(Context1.GetAddressOf());
+
+	// Start with zero offset
+	// buffer has not been used yet at this stage
+	cbHeapOffsetInBytes = 0;
+
+	cbHeapSizeInBytes = 1000 * 256; // More than enough for now
+	// Ensure 256-byte alignment in the event the above calculation changes!
+	cbHeapSizeInBytes = (cbHeapSizeInBytes + 255) / 256 * 256;
+
+	// Create the actual buffer
+	D3D11_BUFFER_DESC cbDesc = {};
+	cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	cbDesc.ByteWidth = cbHeapSizeInBytes; // Must be a multiple of 16
+	cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	cbDesc.Usage = D3D11_USAGE_DYNAMIC;
+	Device->CreateBuffer(&cbDesc, 0, ConstantBufferHeap.GetAddressOf());
 
 #if defined(DEBUG) || defined(_DEBUG)
 	// If we're in debug mode, set up the info queue to
@@ -263,6 +289,69 @@ void Graphics::ResizeBuffers(unsigned int width, unsigned int height)
 
 	// Are we in a fullscreen state?
 	SwapChain->GetFullscreenState(&isFullscreen, 0);
+}
+
+/// <summary>
+///  fill a portion of the constant buffer with data and then immediately bind 
+/// that portion to pipeline for an upcoming draw
+/// </summary>
+/// <param name="data">Pointer to the data iteself to memcpy to the GPU</param>
+/// <param name="dataSizeInBytes">The size of data, for both memcpy and know how much space to reserve for buffer</param>
+/// <param name="shaderType">which shader stage - vertex or pixel - this data is destined for</param>
+/// <param name="registerSlot">binding slot (register) index since multiple buffer can be bound to a singel shader stage</param>
+void Graphics::FillAndBindNextConstantBuffer(void* data, unsigned int dataSizeInBytes, D3D11_SHADER_TYPE shaderType, unsigned int registerSlot)
+{
+	// How much space will we actually need? Each chunk must be
+	// a multiple of 256 bytes.
+	unsigned int reservationSize = (dataSizeInBytes + 255) / 256 * 256;
+
+	// Does this fit in the remaining space? If not, loop back to
+	// the beginning of the ring buffer
+	if (cbHeapOffsetInBytes + reservationSize >= cbHeapSizeInBytes)
+		cbHeapOffsetInBytes = 0;
+
+	// This lets us write into the unused areas without the need for separate physical buffers
+	D3D11_MAPPED_SUBRESOURCE map{};
+	Context->Map(
+		ConstantBufferHeap.Get(),
+		0,
+		D3D11_MAP_WRITE_NO_OVERWRITE, //promising not to overwrite any data the GPU might still be using
+		0,
+		&map);
+
+	// Write into the proper portion of the buffer
+	void* uploadAddress = reinterpret_cast<void*>((UINT64)map.pData + cbHeapOffsetInBytes);
+	memcpy(uploadAddress, data, dataSizeInBytes);
+	Context->Unmap(ConstantBufferHeap.Get(), 0);
+
+
+	// Calculate the binding offset and size as measured in 16-byte constants
+	unsigned int firstConstant = cbHeapOffsetInBytes / 16;
+	unsigned int numConstants = reservationSize / 16;
+
+	// Bind the buffer to the proper pipeline stage
+	switch (shaderType)
+	{
+	case D3D11_VERTEX_SHADER:
+		Context1->VSSetConstantBuffers1(
+			registerSlot,
+			1,
+			ConstantBufferHeap.GetAddressOf(),
+			&firstConstant,
+			&numConstants);
+		break;
+	case D3D11_PIXEL_SHADER:
+		Context1->PSSetConstantBuffers1(
+			registerSlot,
+			1,
+			ConstantBufferHeap.GetAddressOf(),
+			&firstConstant,
+			&numConstants);
+		break;
+	}
+
+	// Offset for the next call
+	cbHeapOffsetInBytes += reservationSize;
 }
 
 
